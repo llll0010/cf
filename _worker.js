@@ -622,8 +622,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
 // 不在这里生成节点，也不在这里取前 10。
 // 先全部加入统一候选池。
 preferredIpCandidates.push(...dynamicIPList);
-      }
-    } catch (error) {
+       catch (error) {
       console.error('获取动态IP失败:', error);
     }
   }
