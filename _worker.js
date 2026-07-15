@@ -66,7 +66,6 @@ function selectTopCandidates(candidates, limit) {
     return uniqueCandidates.slice(0, limit);
 }
 // 每一类最多输出的优选节点数
-const MAX_PREFERRED_IPS = 10;
 const MAX_PREFERRED_DOMAINS = 10;
 
 // 排名数值越小越好：优先延迟，其次下载速度（速度越大越好）。
@@ -578,7 +577,6 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
 
     // Wetest、GitHub、API 的 IP 都先放进这里
     const preferredIpCandidates = [];
-    const preferredIpCandidates = [];
     const workerDomain = url.hostname;  // workerDomain始终是请求的hostname
     const nodeDomain = customDomain || url.hostname;  // 用户输入的域名用于生成节点时的host/sni
     const target = url.searchParams.get('target') || 'base64';
@@ -630,113 +628,21 @@ preferredIpCandidates.push(...dynamicIPList);
     }
   }
 
-    // GitHub优选 / 优选API
-    if (egi) {
-        try {
-            // 检查是否是优选API URL（以https://开头）
-            if (piu && piu.toLowerCase().startsWith('https://')) {
-                // 从优选API获取IP列表
-                const 优选API的IP = await 请求优选API([piu]);
-                if (优选API的IP && 优选API的IP.length > 0) {
-                    // 解析IP字符串格式：IP:端口#备注
-                    const IP列表 = 优选API的IP.map(原始地址 => {
-                        // 统一正则: 匹配 域名/IPv4/IPv6地址 + 可选端口 + 可选备注
-                        const regex = /^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/;
-                        const match = 原始地址.match(regex);
+// GitHub 优选 IP：获取后先放入统一候选池
+if (egi) {
+    try {
+        const newIPList = await fetchAndParseNewIPs(piu);
 
-                        if (match) {
-                            const 节点地址 = match[1].replace(/[\[\]]/g, ''); // 移除IPv6的方括号
-                            const 节点端口 = match[2] || 443;
-                            const 节点备注 = match[3] || 节点地址;
-                            return {
-                                ip: 节点地址,
-                                port: parseInt(节点端口),
-                                name: 节点备注
-                            };
-                        }
-                        return null;
-                    }).filter(item => item !== null);
-                    
-                    if (IP列表.length > 0) {
-                        const hasProtocol = evEnabled || etEnabled || vmEnabled;
-                        const useVL = hasProtocol ? evEnabled : true;
-                        
-                       if (useVL) {
-            preferredIpCandidates.push(...IP列表);
-                    }
-                }
-            } else if (piu && piu.includes('\n')) {
-                // 支持多行文本，包含混合格式（优选API URL + IP列表）
-                const 完整优选列表 = await 整理成数组(piu);
-                const 优选API = [], 优选IP = [], 其他节点 = [];
-                
-                for (const 元素 of 完整优选列表) {
-                    if (元素.toLowerCase().startsWith('https://')) {
-                        优选API.push(元素);
-                    } else if (元素.toLowerCase().includes('://')) {
-                        其他节点.push(元素);
-                    } else {
-                        优选IP.push(元素);
-                    }
-                }
-                
-                // 从优选API获取IP
-                if (优选API.length > 0) {
-                    const 优选API的IP = await 请求优选API(优选API);
-                    优选IP.push(...优选API的IP);
-                }
-                
-                // 解析所有IP并生成节点
-                if (优选IP.length > 0) {
-                    const IP列表 = 优选IP.map(原始地址 => {
-                        const regex = /^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/;
-                        const match = 原始地址.match(regex);
-
-                        if (match) {
-                            const 节点地址 = match[1].replace(/[\[\]]/g, '');
-                            const 节点端口 = match[2] || 443;
-                            const 节点备注 = match[3] || 节点地址;
-                            return {
-                                ip: 节点地址,
-                                port: parseInt(节点端口),
-                                name: 节点备注
-                            };
-                        }
-                        return null;
-                    }).filter(item => item !== null);
-                    
-                    if (IP列表.length > 0) {
-      // 【新增】第一处：限制通过自定义API/多行文本输入的IP数量
-preferredIpCandidates.push(...IP列表);
-      
-      const hasProtocol = evEnabled || etEnabled || vmEnabled;
-      const useVL = hasProtocol ? evEnabled : true;
-      if (useVL) {
-        // 传入变量换成 topIPList
-        finalLinks.push(...generateLinksFromNewIPs(topIPList, user, nodeDomain, wsPath, echConfig));
-      }
+        // 不在这里直接生成节点
+        // 所有 IP 统一在后面取前 10 个
+        preferredIpCandidates.push(...newIPList);
+    } catch (error) {
+        console.error('获取 GitHub 优选IP失败:', error);
     }
-  }
-} else {
-  // 原有的GitHub优选逻辑（单URL）
-  const newIPList = await fetchAndParseNewIPs(piu);
-  if (newIPList.length > 0) {
-    // 【新增】第二处：限制默认的 GitHub (BestCFip) 获取到的 IP 数量
-    preferredIpCandidates.push(...IP列表);
-    
-    const hasProtocol = evEnabled || etEnabled || vmEnabled;
-    const useVL = hasProtocol ? evEnabled : true;
-    if (useVL) {
-      // 传入变量换成 topNewIPList
-      finalLinks.push(...generateLinksFromNewIPs(topNewIPList, user, nodeDomain, wsPath, echConfig));
-    }
-  }
 }
-        } catch (error) {
-            console.error('获取优选IP失败:', error);
-        }
-    }
-// 所有 IP 来源已汇总：去重、排序后，最终只取 10 个 IP。
+
+// Wetest 和 GitHub 的 IP 已汇总。
+// 去重后只保留 10 个 IP，再生成节点。
 if (preferredIpCandidates.length > 0) {
     const topIPs = selectTopCandidates(
         preferredIpCandidates,
