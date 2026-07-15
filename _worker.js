@@ -622,26 +622,32 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                     }).filter(item => item !== null);
                     
                     if (IP列表.length > 0) {
-                        const hasProtocol = evEnabled || etEnabled || vmEnabled;
-                        const useVL = hasProtocol ? evEnabled : true;
-                        
-                        if (useVL) {
-                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath, echConfig));
-                        }
-                    }
-                }
-            } else {
-                // 原有的GitHub优选逻辑（单URL）
-                const newIPList = await fetchAndParseNewIPs(piu);
-                if (newIPList.length > 0) {
-                    const hasProtocol = evEnabled || etEnabled || vmEnabled;
-                    const useVL = hasProtocol ? evEnabled : true;
-                    
-                    if (useVL) {
-                        finalLinks.push(...generateLinksFromNewIPs(newIPList, user, nodeDomain, wsPath, echConfig));
-                    }
-                }
-            }
+      // 【新增】第一处：限制通过自定义API/多行文本输入的IP数量
+      const topIPList = IP列表.slice(0, 10);
+      
+      const hasProtocol = evEnabled || etEnabled || vmEnabled;
+      const useVL = hasProtocol ? evEnabled : true;
+      if (useVL) {
+        // 传入变量换成 topIPList
+        finalLinks.push(...generateLinksFromNewIPs(topIPList, user, nodeDomain, wsPath, echConfig));
+      }
+    }
+  }
+} else {
+  // 原有的GitHub优选逻辑（单URL）
+  const newIPList = await fetchAndParseNewIPs(piu);
+  if (newIPList.length > 0) {
+    // 【新增】第二处：限制默认的 GitHub (BestCFip) 获取到的 IP 数量
+    const topNewIPList = newIPList.slice(0, 10);
+    
+    const hasProtocol = evEnabled || etEnabled || vmEnabled;
+    const useVL = hasProtocol ? evEnabled : true;
+    if (useVL) {
+      // 传入变量换成 topNewIPList
+      finalLinks.push(...generateLinksFromNewIPs(topNewIPList, user, nodeDomain, wsPath, echConfig));
+    }
+  }
+}
         } catch (error) {
             console.error('获取优选IP失败:', error);
         }
