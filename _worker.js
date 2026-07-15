@@ -41,30 +41,7 @@ const MAX_PREFERRED_IPS = 10;
 
 // 去除重复 IP，并按原列表顺序取前 limit 个。
 // 原列表若已按速度/延迟排序，结果就是最快的前 10 个。
-function selectTopCandidates(candidates, limit) {
-    const uniqueCandidates = [];
-    const seen = new Set();
 
-    for (const item of candidates) {
-        const ip = String(item.ip || '').trim();
-        const port = item.port || 443;
-
-        if (!ip) continue;
-
-        // 相同 IP 和端口只保留一次
-        const key = `${ip}:${port}`;
-        if (seen.has(key)) continue;
-
-        seen.add(key);
-        uniqueCandidates.push({
-            ...item,
-            ip,
-            port
-        });
-    }
-
-    return uniqueCandidates.slice(0, limit);
-}
 // 每一类最多输出的优选节点数
 const MAX_PREFERRED_DOMAINS = 10;
 
@@ -622,7 +599,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
 // 不在这里生成节点，也不在这里取前 10。
 // 先全部加入统一候选池。
 preferredIpCandidates.push(...dynamicIPList);
-       catch (error) {
+    } catch (error) {
       console.error('获取动态IP失败:', error);
     }
   }
