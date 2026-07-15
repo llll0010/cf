@@ -534,16 +534,18 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     }
 
     // 优选IP
-    if (epi) {
-        try {
-            const dynamicIPList = await fetchDynamicIPs(ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom);
-            if (dynamicIPList.length > 0) {
-                await addNodesFromList(dynamicIPList);
-            }
-        } catch (error) {
-            console.error('获取动态IP失败:', error);
-        }
+  if (epi) {
+    try {
+      const dynamicIPList = await fetchDynamicIPs(ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom);
+      if (dynamicIPList.length > 0) {
+        // 【新增】只取前 6 个最快的 Wetest 优选 IP
+        const topDynamicIPList = dynamicIPList.slice(0, 6);
+        await addNodesFromList(topDynamicIPList);
+      }
+    } catch (error) {
+      console.error('获取动态IP失败:', error);
     }
+  }
 
     // GitHub优选 / 优选API
     if (egi) {
