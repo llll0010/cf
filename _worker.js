@@ -30,8 +30,8 @@ const directDomains = [
     { domain: "cloudflare-ip.mofashi.ltd" },
     { domain: "cf.877771.xyz" },
     { domain: "xn--b6gac.eu.org" },
-    { domain: " https://saas.sin.fan/" },
-    { domain: " bestcf.030101.xyz" }
+    { domain: "saas.sin.fan" },
+    { domain: "bestcf.030101.xyz" }
 ];
 
 // 默认优选IP来源URL
@@ -538,8 +538,8 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     try {
       const dynamicIPList = await fetchDynamicIPs(ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom);
       if (dynamicIPList.length > 0) {
-        // 【新增】只取前 6 个最快的 Wetest 优选 IP
-        const topDynamicIPList = dynamicIPList.slice(0, 6);
+        // 【新增】只取前 10 个最快的 Wetest 优选 IP
+        const topDynamicIPList = dynamicIPList.slice(0, 10);
         await addNodesFromList(topDynamicIPList);
       }
     } catch (error) {
@@ -578,9 +578,10 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         const hasProtocol = evEnabled || etEnabled || vmEnabled;
                         const useVL = hasProtocol ? evEnabled : true;
                         
-                        if (useVL) {
-                            finalLinks.push(...generateLinksFromNewIPs(IP列表, user, nodeDomain, wsPath, echConfig));
-                        }
+                       if (useVL) {
+            const topIPList = IP列表.slice(0, 10);
+            finalLinks.push(...generateLinksFromNewIPs(topIPList, user, nodeDomain, wsPath, echConfig));
+          }
                     }
                 }
             } else if (piu && piu.includes('\n')) {
