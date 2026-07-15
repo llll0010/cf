@@ -36,7 +36,80 @@ const directDomains = [
 
 // 默认优选IP来源URL
 const defaultIPURL = 'https://ghfast.top/https://github.com/joname1/BestCFip/blob/main/ipv4.txt';
+// 最终优选 IP 总数：无论有多少个来源，最多只取 10 个
+const MAX_PREFERRED_IPS = 10;
 
+// 去除重复 IP，并按原列表顺序取前 limit 个。
+// 原列表若已按速度/延迟排序，结果就是最快的前 10 个。
+function selectTopCandidates(candidates, limit) {
+    const uniqueCandidates = [];
+    const seen = new Set();
+
+    for (const item of candidates) {
+        const ip = String(item.ip || '').trim();
+        const port = item.port || 443;
+
+        if (!ip) continue;
+
+        // 相同 IP 和端口只保留一次
+        const key = `${ip}:${port}`;
+        if (seen.has(key)) continue;
+
+        seen.add(key);
+        uniqueCandidates.push({
+            ...item,
+            ip,
+            port
+        });
+    }
+
+    return uniqueCandidates.slice(0, limit);
+}
+// 每一类最多输出的优选节点数
+const MAX_PREFERRED_IPS = 10;
+const MAX_PREFERRED_DOMAINS = 10;
+
+// 排名数值越小越好：优先延迟，其次下载速度（速度越大越好）。
+function getCandidateRank(item) {
+    const latency = Number(item.latency ?? item.delay ?? item.ping);
+    const speed = Number(item.speed ?? item.downloadSpeed);
+
+    if (Number.isFinite(latency) && latency >= 0) {
+        // 延迟是主指标；速度作为同延迟时的次级指标。
+        return latency - (Number.isFinite(speed) && speed > 0 ? Math.min(speed, 1000) / 100000 : 0);
+    }
+
+    // 没有测速数据时保留原始来源顺序；不要伪称为“最快”。
+    return Number(item.priority ?? Number.MAX_SAFE_INTEGER);
+}
+
+function endpointKey(item) {
+    const host = String(item.ip || item.domain || '').trim().toLowerCase();
+    const port = Number(item.port || 443);
+    return `${host}:${port}`;
+}
+
+function selectTopCandidates(candidates, limit) {
+    const unique = new Map();
+
+    for (const item of candidates) {
+        const host = String(item.ip || item.domain || '').trim();
+        if (!host) continue;
+
+        const normalized = { ...item, ip: host };
+        const key = endpointKey(normalized);
+        const old = unique.get(key);
+
+        // 重复地址只保留评分更好的那一项。
+        if (!old || getCandidateRank(normalized) < getCandidateRank(old)) {
+            unique.set(key, normalized);
+        }
+    }
+
+    return [...unique.values()]
+        .sort((a, b) => getCandidateRank(a) - getCandidateRank(b))
+        .slice(0, limit);
+}
 // UUID验证
 function isValidUUID(str) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -502,6 +575,10 @@ function generateLinksFromNewIPs(list, user, workerDomain, customPath = '/', ech
 async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom, evEnabled, etEnabled, vmEnabled, disableNonTLS, customPath, echConfig = null) {
     const url = new URL(request.url);
     const finalLinks = [];
+
+    // Wetest、GitHub、API 的 IP 都先放进这里
+    const preferredIpCandidates = [];
+    const preferredIpCandidates = [];
     const workerDomain = url.hostname;  // workerDomain始终是请求的hostname
     const nodeDomain = customDomain || url.hostname;  // 用户输入的域名用于生成节点时的host/sni
     const target = url.searchParams.get('target') || 'base64';
@@ -536,11 +613,17 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
     // 优选IP
   if (epi) {
     try {
-      const dynamicIPList = await fetchDynamicIPs(ipv4Enabled, ipv6Enabled, ispMobile, ispUnicom, ispTelecom);
-      if (dynamicIPList.length > 0) {
-        // 【新增】只取前 10 个最快的 Wetest 优选 IP
-        const topDynamicIPList = dynamicIPList.slice(0, 10);
-        await addNodesFromList(topDynamicIPList);
+    const dynamicIPList = await fetchDynamicIPs(
+    ipv4Enabled,
+    ipv6Enabled,
+    ispMobile,
+    ispUnicom,
+    ispTelecom
+);
+
+// 不在这里生成节点，也不在这里取前 10。
+// 先全部加入统一候选池。
+preferredIpCandidates.push(...dynamicIPList);
       }
     } catch (error) {
       console.error('获取动态IP失败:', error);
@@ -579,9 +662,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                         const useVL = hasProtocol ? evEnabled : true;
                         
                        if (useVL) {
-            const topIPList = IP列表.slice(0, 10);
-            finalLinks.push(...generateLinksFromNewIPs(topIPList, user, nodeDomain, wsPath, echConfig));
-          }
+            preferredIpCandidates.push(...IP列表);
                     }
                 }
             } else if (piu && piu.includes('\n')) {
@@ -626,7 +707,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
                     
                     if (IP列表.length > 0) {
       // 【新增】第一处：限制通过自定义API/多行文本输入的IP数量
-      const topIPList = IP列表.slice(0, 10);
+preferredIpCandidates.push(...IP列表);
       
       const hasProtocol = evEnabled || etEnabled || vmEnabled;
       const useVL = hasProtocol ? evEnabled : true;
@@ -641,7 +722,7 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
   const newIPList = await fetchAndParseNewIPs(piu);
   if (newIPList.length > 0) {
     // 【新增】第二处：限制默认的 GitHub (BestCFip) 获取到的 IP 数量
-    const topNewIPList = newIPList.slice(0, 10);
+    preferredIpCandidates.push(...IP列表);
     
     const hasProtocol = evEnabled || etEnabled || vmEnabled;
     const useVL = hasProtocol ? evEnabled : true;
@@ -655,7 +736,15 @@ async function handleSubscriptionRequest(request, user, customDomain, piu, ipv4E
             console.error('获取优选IP失败:', error);
         }
     }
+// 所有 IP 来源已汇总：去重、排序后，最终只取 10 个 IP。
+if (preferredIpCandidates.length > 0) {
+    const topIPs = selectTopCandidates(
+        preferredIpCandidates,
+        MAX_PREFERRED_IPS
+    );
 
+    await addNodesFromList(topIPs);
+}
     if (finalLinks.length === 0) {
         const errorRemark = "所有节点获取失败";
         const errorLink = `vless://00000000-0000-0000-0000-000000000000@127.0.0.1:80?encryption=none&security=none&type=ws&host=error.com&path=%2F#${encodeURIComponent(errorRemark)}`;
