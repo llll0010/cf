@@ -739,6 +739,73 @@ function generateQuantumultConfig(links) {
     return btoa(links.join('\n'));
 }
 
+// 生成二维码页面
+function generateQRPage() {
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>订阅二维码</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{
+font-family:Arial;
+text-align:center;
+padding:30px;
+}
+input{
+width:90%;
+padding:10px;
+}
+button{
+padding:10px 20px;
+margin-top:15px;
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+</head>
+
+<body>
+
+<h2>订阅二维码</h2>
+
+<input id="url" placeholder="输入完整订阅链接">
+
+<br>
+
+<button onclick="makeQR()">生成二维码</button>
+
+<div id="qrcode"></div>
+
+
+<script>
+
+function makeQR(){
+
+let url=document.getElementById("url").value;
+
+document.getElementById("qrcode").innerHTML="";
+
+new QRCode(
+document.getElementById("qrcode"),
+{
+text:url,
+width:250,
+height:250
+}
+);
+
+}
+
+</script>
+
+</body>
+</html>`;
+}
+
+
 // 生成iOS 26风格的主页
 function generateHomePage(scuValue) {
     const scu = scuValue || 'https://url.v1.mk/sub';
@@ -1568,8 +1635,24 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-        
+xport default {
+    async fetch(request, env, ctx) {
+        const url = new URL(request.url);
+        const path = url.pathname;
+
+
+        // 二维码页面
+        if (path === '/qr') {
+            return new Response(generateQRPage(), {
+                headers: {
+                    'Content-Type': 'text/html;charset=utf-8'
+                }
+            });
+        }
+
+
         // 主页
+        if (path === '/' || path === '') {
         if (path === '/' || path === '') {
             const scuValue = env?.scu || scu;
             return new Response(generateHomePage(scuValue), {
