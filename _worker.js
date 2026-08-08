@@ -31,21 +31,21 @@ const directDomains = [
     { domain: "cf.877771.xyz" },
     { domain: "xn--b6gac.eu.org" },
     { domain: "saas.sin.fan" },
-    { domain: "bestcf.030101.xyz" }
-    { domain: "ct.877774.xyz" }
+    { domain: "bestcf.030101.xyz" },
+    { domain: "ct.877774.xyz" },
     { domain: "cf.877774.xyz" }
 ];
 
 // 默认优选IP来源URL
 const defaultIPURL = 'https://ghfast.top/https://github.com/joname1/BestCFip/blob/main/ipv4.txt';
-// 最终优选 IP 总数：无论有多少个来源，最多只取 10 个
-const MAX_PREFERRED_IPS = 10;
+// 最终优选 IP 总数：无论有多少个来源，最多只取 4 个
+const MAX_PREFERRED_IPS = 4;
 
 // 去除重复 IP，并按原列表顺序取前 limit 个。
-// 原列表若已按速度/延迟排序，结果就是最快的前 10 个。
+// 原列表若已按速度/延迟排序，结果就是最快的前 4 个。
 
 // 每一类最多输出的优选节点数
-const MAX_PREFERRED_DOMAINS = 10;
+const MAX_PREFERRED_DOMAINS = 4;
 
 // 排名数值越小越好：优先延迟，其次下载速度（速度越大越好）。
 function getCandidateRank(item) {
