@@ -32,6 +32,8 @@ const directDomains = [
     { domain: "xn--b6gac.eu.org" },
     { domain: "saas.sin.fan" },
     { domain: "bestcf.030101.xyz" }
+    { domain: "ct.877774.xyz" }
+    { domain: "cf.877774.xyz" }
 ];
 
 // 默认优选IP来源URL
