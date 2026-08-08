@@ -1635,7 +1635,7 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-xport default {
+export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
