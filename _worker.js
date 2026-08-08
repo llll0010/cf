@@ -1635,10 +1635,6 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
         const path = url.pathname;
-export default {
-    async fetch(request, env, ctx) {
-        const url = new URL(request.url);
-        const path = url.pathname;
 
 
         // 二维码页面
@@ -1652,7 +1648,6 @@ export default {
 
 
         // 主页
-        if (path === '/' || path === '') {
         if (path === '/' || path === '') {
             const scuValue = env?.scu || scu;
             return new Response(generateHomePage(scuValue), {
